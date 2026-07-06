@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>双人扫雷对决</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  min-height: 100vh;
+  display: flex; justify-content: center; align-items: center; color: #fff;
+}
+.game-container {
+  background: rgba(255,255,255,0.05); backdrop-filter: blur(20px);
+  border-radius: 20px; padding: 25px;
+  border: 1px solid rgba(255,255,255,0.15);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.5); max-width: 680px; width: 95%;
+}
+h1 { text-align:center; font-size:26px; margin-bottom:4px;
+  background: linear-gradient(90deg, #ff6b6b, #ffd93d, #6bcbff);
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+.subtitle { text-align:center; color:#aaa; font-size:13px; margin-bottom:14px; }
+.hp-bars { display:flex; justify-content:space-between; gap:20px; margin-bottom:10px; }
+.hp-bar-wrap { flex:1; text-align:center; }
+.hp-label { font-size:14px; font-weight:bold; margin-bottom:4px; }
+.hp-track { height:18px; background:rgba(255,255,255,0.1); border-radius:9px; overflow:hidden; border:1px solid rgba(255,255,255,0.2); }
+.hp-fill { height:100%; border-radius:9px; transition:width 0.3s; }
+.hp-fill.a { background:linear-gradient(90deg, #e74c3c, #c0392b); }
+.hp-fill.b { background:linear-gradient(90deg, #3498db, #2980b9); }
+.hp-text { font-size:12px; margin-top:2px; }
+.info-bar { text-align:center; font-size:14px; padding:10px; background:rgba(255,255,255,0.08); border-radius:10px; margin-bottom:10px; }
+.turn-indicator { font-weight:bold; font-size:15px; }
+.turn-indicator.a { color:#ff6b6b; } .turn-indicator.b { color:#6bb5ff; }
+.place-status { color:#ffd700; font-size:13px; margin-top:4px; }
+.board-wrap { display:flex; justify-content:center; margin:10px 0; }
+.board { display:grid; grid-template-columns:repeat(10, 48px); gap:3px; }
+.cell {
+  width:48px; height:48px; border-radius:8px; display:flex;
+  align-items:center; justify-content:center; font-size:16px; font-weight:bold;
+  cursor:pointer; transition:all 0.12s; border:2px solid transparent; user-select:none;
+}
+.cell.unrevealed { background:rgba(255,255,255,0.06); border-color:rgba(255,255,255,0.12); }
+.cell.unrevealed:hover { background:rgba(255,255,255,0.15); border-color:rgba(255,255,255,0.3); }
+.cell.revealed { background:rgba(255,255,255,0.02); border-color:rgba(255,255,255,0.05); cursor:default; }
+.cell.player-a { border-color:#ff4444; box-shadow:0 0 12px rgba(255,68,68,0.6); background:rgba(255,68,68,0.15); }
+.cell.player-b { border-color:#4488ff; box-shadow:0 0 12px rgba(68,136,255,0.6); background:rgba(68,136,255,0.15); }
+.cell.player-both { border-color:#ff44ff; box-shadow:0 0 12px rgba(255,68,255,0.7); background:rgba(255,68,255,0.2); }
+.cell.cursor { border-color:#ffd700; box-shadow:0 0 16px rgba(255,215,0,0.8); }
+.cell.mine-a { color:#ff4444; } .cell.mine-b { color:#4488ff; } .cell.mine-both { color:#ffaa00; }
+.cell.hpot { color:#44ff44; }
+.cell.num-1 { color:#55aaff; } .cell.num-2 { color:#55cc55; } .cell.num-3 { color:#ff5555; }
+.cell.num-4 { color:#aa55ff; } .cell.num-5 { color:#ff8844; } .cell.num-6 { color:#44dddd; }
+.cell.num-7 { color:#ff44ff; } .cell.num-8 { color:#dddd44; }
+.legend { display:flex; justify-content:center; gap:14px; font-size:12px; margin:8px 0; flex-wrap:wrap; }
+.legend span { display:flex; align-items:center; gap:4px; }
+.legend .dot { width:14px; height:14px; border-radius:4px; }
+.controls { text-align:center; margin-top:8px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+.btn { padding:10px 22px; border:none; border-radius:25px; font-size:15px; font-weight:bold; cursor:pointer; transition:all 0.2s; color:#fff; }
+.btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.3); }
+.btn-red { background:linear-gradient(135deg, #e74c3c, #c0392b); }
+.btn-blue { background:linear-gradient(135deg, #3498db, #2980b9); }
+.btn-green { background:linear-gradient(135deg, #2ecc71, #27ae60); }
+.btn-gold { background:linear-gradient(135deg, #f39c12, #e67e22); }
+.btn-purple { background:linear-gradient(135deg, #9b59b6, #8e44ad); }
+.btn:disabled { opacity:0.4; cursor:not-allowed; transform:none; box-shadow:none; }
+.modal { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:flex; align-items:center; justify-content:center; z-index:999; }
+.modal-content { background:linear-gradient(135deg, #1a1a2e, #16213e); border-radius:20px; padding:30px; text-align:center; border:1px solid rgba(255,255,255,0.2); max-width:500px; width:90%; }
+.modal h2 { font-size:24px; margin-bottom:16px; }
+.modal .result-icon { font-size:60px; margin-bottom:10px; }
+</style>
+</head>
+<body>
+<div class="game-container">
+  <h1>💣 双人扫雷对决 ⚔️</h1>
+  <div class="subtitle">中国阵营 ★ VS 他国阵营 ◆</div>
+
+  <div class="hp-bars">
+    <div class="hp-bar-wrap">
+      <div class="hp-label" style="color:#ff6b6b">🇨🇳 <span id="nameA">玩家A</span></div>
+      <div class="hp-track"><div class="hp-fill a" id="hpBarA" style="width:100%"></div></div>
+      <div class="hp-text" id="hpTextA">10 / 10</div>
+    </div>
+    <div class="hp-bar-wrap">
+      <div class="hp-label" style="color:#6bb5ff">🌍 <span id="nameB">玩家B</span></div>
+      <div class="hp-track"><div class="hp-fill b" id="hpBarB" style="width:100%"></div></div>
+      <div class="hp-text" id="hpTextB">10 / 10</div>
+    </div>
+  </div>
+
+  <div class="info-bar" id="infoBar">
+    <div class="turn-indicator" id="turnInfo">🎯 等待开始...</div>
+    <div class="place-status" id="placeStatus" style="display:none"></div>
+    <div class="tooltip" id="statusMsg" style="margin-top:4px;color:#aaa;font-size:12px"></div>
+  </div>
+
+  <div class="board-wrap"><div class="board" id="board"></div></div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:#e74c3c"></span>A雷★</span>
+    <span><span class="dot" style="background:#3498db"></span>B雷◆</span>
+    <span><span class="dot" style="background:#f39c12"></span>重叠!!</span>
+    <span><span class="dot" style="background:#2ecc71"></span>血瓶+</span>
+    <span><span class="dot" style="background:#555"></span>未开#</span>
+  </div>
+
+  <div class="controls" id="controls">
+    <button class="btn btn-green" id="btnPlaceDone" style="display:none">✅ 完成布置</button>
+    <button class="btn btn-purple" onclick="resetGame()">🔄 重新开始</button>
+  </div>
+</div>
+
+<!-- 模式选择 -->
+<div class="modal" id="modeModal">
+  <div class="modal-content">
+    <h2>🎮 选择游戏模式</h2>
+    <button class="btn btn-red" onclick="stG(1)" style="width:100%;margin-bottom:8px">🤖 单人模式 (vs AI)</button>
+    <button class="btn btn-blue" onclick="stG(2)" style="width:100%">👥 双人模式 (vs 好友)</button>
+  </div>
+</div>
+
+<!-- 结果 -->
+<div class="modal" id="resultModal" style="display:none">
+  <div class="modal-content" id="resultContent"></div>
+</div>
+
+<script>
+const BS=10, ME=10, HE=1, IHP=10, DD=5, SD=2, HA=5;
+let audioCtx=null;
+function getA(){if(!audioCtx) audioCtx=new(window.AudioContext||window.webkitAudioContext)();return audioCtx;}
+function beep(f,d,t='square',v=0.08){try{const c=getA(),o=c.createOscillator(),g=c.createGain();o.type=t;o.frequency.value=f;g.gain.setValueAtTime(v,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+d);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+d);}catch(e){}}
+function sfxMv(){beep(500,0.04,'square',0.05)} function sfxPl(){beep(700,0.06,'triangle',0.07)}
+function sfxHe(){setTimeout(()=>beep(800,0.1,'sine',0.1),0);setTimeout(()=>beep(1000,0.1,'sine',0.1),100)}
+function sfxEx(){beep(100,0.1,'sawtooth',0.12);setTimeout(()=>beep(60,0.08,'sawtooth',0.14),100);setTimeout(()=>beep(40,0.15,'sawtooth',0.16),180)}
+function sfxGS(){beep(523,0.12,'sine',0.08);setTimeout(()=>beep(659,0.12,'sine',0.08),120);setTimeout(()=>beep(784,0.2,'sine',0.08),240)}
+function sfxW(){beep(784,0.12,'sine',0.1);setTimeout(()=>beep(988,0.12,'sine',0.1),120);setTimeout(()=>beep(1048,0.3,'sine',0.1),240)}
+function sfxD(){beep(440,0.15,'sine',0.08);setTimeout(()=>beep(440,0.15,'sine',0.08),150)}
+
+let isSingle,phase='menu',placingP=1,turnP=1;
+let bd=[],revealed=[];
+let pA={r:-1,c:-1},pB={r:-1,c:-1};
+let hpA=IHP,hpB=IHP;
+let plMines=0,plHpots=0;
+let fA=true,fB=true;
+let curR=0,curC=0;
+let lastClick=0,lastCell='';
+
+function iB(){bd=Array.from({length:BS},()=>Array(BS).fill(0));revealed=Array.from({length:BS},()=>Array(BS).fill(false));}
+function gc(r,c){const m=bd[r][c];return{ma:!!(m&1),mb:!!(m&2),ha:!!(m&4),hb:!!(m&8),mc:()=>(!!(m&1)?1:0)+(!!(m&2)?1:0),hc:()=>(!!(m&4)?1:0)+(!!(m&8)?1:0)};}
+function ctn(r,c){let n=0;for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<BS&&nc>=0&&nc<BS){if(bd[nr][nc]&1)n++;if(bd[nr][nc]&2)n++;}}return n;}
+
+function rb(){
+  const el=document.getElementById('board');el.innerHTML='';
+  for(let r=0;r<BS;r++)for(let c=0;c<BS;c++){
+    const ce=document.createElement('div');ce.className='cell';ce.dataset.r=r;ce.dataset.c=c;
+    const ia=(pA.r===r&&pA.c===c),ib=(pB.r===r&&pB.c===c);
+    const ic=(phase==='playing'&&turnP!==(isSingle?2:null))&&(r===curR&&c===curC);
+    if(ia&&ib)ce.classList.add('player-both');else if(ia)ce.classList.add('player-a');else if(ib)ce.classList.add('player-b');
+    if(ic&&!ia&&!ib)ce.classList.add('cursor');
+    if(!revealed[r][c]){
+      ce.classList.add('unrevealed');ce.textContent='#';
+      if(phase==='placing'){
+        const m=bd[r][c];
+        const myM=(placingP===1)?(m&1):(m&2);
+        const myH=(placingP===1)?(m&4):(m&8);
+        if(myM||myH)ce.style.color='';
+        if(myM&&myH){ce.textContent='M+';ce.style.color='#ffd700';}
+        else if(myM){ce.textContent=placingP===1?'★':'◆';ce.style.color=placingP===1?'#ff4444':'#4488ff';}
+        else if(myH){ce.textContent='+';ce.style.color='#44ff44';}
+      }
+    }
+    else{ce.classList.add('revealed');const cc=gc(r,c);
+      if(cc.ma&&cc.mb){ce.textContent='!!';ce.classList.add('mine-both');}
+      else if(cc.ma){ce.textContent='★';ce.classList.add('mine-a');if(cc.ha||cc.hb)ce.textContent='★+';}
+      else if(cc.mb){ce.textContent='◆';ce.classList.add('mine-b');if(cc.ha||cc.hb)ce.textContent='◆+';}
+      else if(cc.ha||cc.hb){ce.textContent='+';ce.classList.add('hpot');}
+      else{const n=ctn(r,c);if(n>0){ce.textContent=n;ce.classList.add('num-'+n);}else ce.textContent='';}
+    }
+    ce.onmousedown=function(e){cd(r,c,e);};
+    ce.oncontextmenu=function(e){e.preventDefault();};
+    el.appendChild(ce);
+  }
+}
+
+function uu(){
+  document.getElementById('hpBarA').style.width=Math.max(0,hpA/IHP*100)+'%';
+  document.getElementById('hpBarB').style.width=Math.max(0,hpB/IHP*100)+'%';
+  document.getElementById('hpTextA').textContent=Math.max(0,hpA)+' / '+IHP;
+  document.getElementById('hpTextB').textContent=Math.max(0,hpB)+' / '+IHP;
+  const ti=document.getElementById('turnInfo'),ps=document.getElementById('placeStatus'),sm=document.getElementById('statusMsg');
+  if(phase==='placing'){
+    ti.innerHTML='🔧 <span style="color:#ffd700">'+(placingP===1?document.getElementById('nameA').textContent:document.getElementById('nameB').textContent)+' 布雷阶段</span>';
+    ps.style.display='block';ps.textContent='地雷: '+plMines+'/'+ME+' | 血瓶: '+plHpots+'/'+HE+'  [点击=布雷 右键=血瓶 双击=取消]';
+    sm.textContent='';
+  }else if(phase==='playing'){
+    ps.style.display='none';
+    const nm=turnP===1?document.getElementById('nameA').textContent:document.getElementById('nameB').textContent;
+    ti.innerHTML='🎯 当前回合：<span class="'+(turnP===1?'a':'b')+'">'+nm+'</span>';
+    ti.className='turn-indicator '+(turnP===1?'a':'b');
+    sm.textContent='W/A/S/D/方向键 移动光标 | P/空格/点击 确认';
+  }
+  document.getElementById('btnPlaceDone').style.display=phase==='placing'?'inline-block':'none';
+  document.getElementById('btnPlaceDone').disabled=!(plMines>=ME&&plHpots>=HE);
+}
+
+// 统一鼠标处理
+function cd(r,c,e){
+  if(phase==='placing'){
+    const now=Date.now(),cid=r+','+c;
+    if(e.button===0){ // 左键
+      if(now-lastClick<350&&lastCell===cid){ // 双击=取消
+        const mb=placingP===1?1:2,hb=placingP===1?4:8;
+        if(bd[r][c]&mb){bd[r][c]&=~mb;plMines=Math.max(0,plMines-1);}
+        if(bd[r][c]&hb){bd[r][c]&=~hb;plHpots=Math.max(0,plHpots-1);}
+        rb();uu();lastClick=0;lastCell='';return;
+      }
+      lastClick=now;lastCell=cid;
+      const mb=placingP===1?1:2;
+      if(bd[r][c]&mb)return;if(plMines>=ME){alert('地雷已布置完毕！');return;}
+      bd[r][c]|=mb;plMines++;sfxPl();rb();uu();
+    }else if(e.button===2){ // 右键=血瓶
+      const hb=placingP===1?4:8;
+      if(bd[r][c]&hb)return;if(plHpots>=HE){alert('血瓶已布置完毕！');return;}
+      bd[r][c]|=hb;plHpots++;sfxPl();rb();uu();
+    }
+  }else if(phase==='playing'){
+    if(turnP===2&&isSingle)return;confirmM(r,c);
+  }
+}
+
+function confirmM(r,c){
+  if(phase!=='playing')return;const cu=turnP;
+  if(cu===2&&isSingle)return;
+  if(!fA&&cu===1&&revealed[r][c]){alert('该格已掀开！');return;}
+  if(!fB&&cu===2&&revealed[r][c]){alert('该格已掀开！');return;}
+  if(cu===1){pA.r=r;pA.c=c;}else{pB.r=r;pB.c=c;}
+  const isF=cu===1?fA:fB;
+  if(isF){if(cu===1)fA=false;else fB=false;revealed[r][c]=true;rb();uu();st();return;}
+  const cc=gc(r,c);const hc=cc.hc(),mc=cc.mc();
+  if(hc>0){const he=hc*HA;if(cu===1)hpA=Math.min(IHP,hpA+he);else hpB=Math.min(IHP,hpB+he);bd[r][c]&=~(4|8);sfxHe();}
+  if(mc>0){sfxEx();const dm=mc*DD;if(cu===1)hpA-=dm;else hpB-=dm;bd[r][c]&=~(1|2);
+    for(let dr=-1;dr<=1;dr++)for(let dc=-1;dc<=1;dc++){if(!dr&&!dc)continue;const nr=r+dr,nc=c+dc;if(nr>=0&&nr<BS&&nc>=0&&nc<BS){const nc2=gc(nr,nc);const mn=nc2.mc();if(!mn)continue;if(pA.r===nr&&pA.c===nc)hpA-=mn*SD;if(pB.r===nr&&pB.c===nc)hpB-=mn*SD;}}
+  }
+  revealed[r][c]=true;rb();uu();
+  if(hpA<=0&&hpB<=0){eg('draw');return;}else if(hpA<=0){eg('b');return;}else if(hpB<=0){eg('a');return;}
+  if(asr()){eg('draw');return;}st();
+}
+function asr(){for(let r=0;r<BS;r++)for(let c=0;c<BS;c++)if(!revealed[r][c]&&!(bd[r][c]&(1|2))&&!(bd[r][c]&(4|8)))return false;return true;}
+function st(){turnP=turnP===1?2:1;curR=(turnP===1?pA.r:pB.r);curC=(turnP===1?pA.c:pB.c);if(curR<0)curR=0;if(curC<0)curC=0;rb();uu();
+  if(isSingle&&turnP===2&&phase==='playing'){document.getElementById('statusMsg').textContent='AI 思考中...';setTimeout(aiM,80+Math.random()*150);}
+}
+function aiM(){if(phase!=='playing')return;const cs=[];for(let r=0;r<BS;r++)for(let c=0;c<BS;c++)if(!revealed[r][c])cs.push({r,c});if(!cs.length){eg('draw');return;}const p=cs[Math.floor(Math.random()*cs.length)];confirmM(p.r,p.c);}
+
+function eg(res){
+  phase='over';for(let r=0;r<BS;r++)for(let c=0;c<BS;c++)revealed[r][c]=true;rb();
+  const m=document.getElementById('resultModal'),c2=document.getElementById('resultContent');m.style.display='flex';
+  if(res==='draw'){c2.innerHTML='<div class="result-icon">🤝</div><h2 style="color:#ffd700">平局！</h2><p>双方均存活 / 同归于尽</p>';sfxD();}
+  else if(res==='a'){c2.innerHTML='<div class="result-icon">🏆</div><h2 style="color:#ff6b6b">'+document.getElementById('nameA').textContent+' 获胜！</h2><p>对方踩雷阵亡</p>';sfxW();}
+  else{c2.innerHTML='<div class="result-icon">🏆</div><h2 style="color:#6bb5ff">'+document.getElementById('nameB').textContent+' 获胜！</h2><p>对方踩雷阵亡</p>';sfxW();}
+  c2.innerHTML+='<p style="margin-top:10px">'+document.getElementById('nameA').textContent+' 剩余血量: '+Math.max(0,hpA)+'<br>'+document.getElementById('nameB').textContent+' 剩余血量: '+Math.max(0,hpB)+'</p><button class="btn btn-purple" onclick="resG()" style="margin-top:15px">🔄 再来一局</button>';
+}
+
+function stG(mode){isSingle=(mode===1);document.getElementById('modeModal').style.display='none';iB();hpA=IHP;hpB=IHP;pA={r:-1,c:-1};pB={r:-1,c:-1};fA=true;fB=true;
+  if(isSingle){document.getElementById('nameA').textContent=prompt('玩家A名称:','玩家A')||'玩家A';document.getElementById('nameB').textContent='AI对手';}
+  else{document.getElementById('nameA').textContent=prompt('A方名称:','玩家A')||'玩家A';document.getElementById('nameB').textContent=prompt('B方名称:','玩家B')||'玩家B';}
+  sP(1);}
+function sP(p){phase='placing';placingP=p;plMines=0;plHpots=0;rb();uu();
+  document.getElementById('btnPlaceDone').onclick=function(){if(plMines>=ME&&plHpots>=HE){
+    if(isSingle&&p===2)spP();else if(!isSingle&&p===2)spP();else{if(isSingle){aiPl();spP();}else{alert('请将电脑交给对方');sP(2);}}
+  }};}
+function spP(){phase='playing';turnP=1;curR=0;curC=0;sfxGS();document.getElementById('resultModal').style.display='none';document.getElementById('modeModal').style.display='none';rb();uu();}
+function aiPl(){for(let i=0;i<ME;i++){while(true){const r=Math.floor(Math.random()*BS),c=Math.floor(Math.random()*BS);if(!(bd[r][c]&2)){bd[r][c]|=2;break;}}}while(true){const r=Math.floor(Math.random()*BS),c=Math.floor(Math.random()*BS);if(!(bd[r][c]&8)){bd[r][c]|=8;break;}}}
+function resG(){document.getElementById('resultModal').style.display='none';iB();hpA=IHP;hpB=IHP;pA={r:-1,c:-1};pB={r:-1,c:-1};fA=true;fB=true;phase='menu';document.getElementById('modeModal').style.display='flex';rb();uu();}
+
+// 键盘
+document.addEventListener('keydown',function(e){if(phase!=='playing')return;if(turnP===2&&isSingle)return;const k=e.key.toLowerCase();
+  if(k==='w'||k==='arrowup'){if(curR>0){curR--;sfxMv();rb();}e.preventDefault();}
+  else if(k==='s'||k==='arrowdown'){if(curR<BS-1){curR++;sfxMv();rb();}e.preventDefault();}
+  else if(k==='a'||k==='arrowleft'){if(curC>0){curC--;sfxMv();rb();}e.preventDefault();}
+  else if(k==='d'||k==='arrowright'){if(curC<BS-1){curC++;sfxMv();rb();}e.preventDefault();}
+  else if(k==='p'||k==='enter'||k===' '){confirmM(curR,curC);e.preventDefault();}
+});
+
+iB();document.getElementById('modeModal').style.display='flex';rb();uu();
+</script>
+</body>
+</html>
